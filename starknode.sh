@@ -14,177 +14,84 @@ echo "=============================================================="
 sleep 3
 echo " "
 
+function alchemy {
+read -p "Insert ALCHEMY HTTPS API ADDRESS: " ALCHEMY 
+echo 'export ALCHEMY='$ALCHEMY >> $HOME/.bash_profile
+}
+
 
 
 function Installingrequiredtool {
+echo " "
 echo -e "\e[1m\e[32mInstalling required tool ... \e[0m" && sleep 1
 sudo apt install curl -y < "/dev/null"
-apt update && apt install git sudo unzip wget -y < "/dev/null"
+sudo apt update && sudo apt install pkg-config libssl-dev libzstd-dev protobuf-compiler -y < "/dev/null"
 }
 
 
-function Installingdocker {
+function Installingrustup {
 echo " "
-echo -e "\e[1m\e[32mInstalling Docker ... \e[0m" && sleep 1
-if ! command -v docker &> /dev/null
-then
-echo " "
-echo -e "\e[1m\e[32mInstalling Docker ... \e[0m" && sleep 1
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh < "/dev/null"
-fi
-
-
-echo " "
-docker compose version
-if [ $? -ne 0 ]
-then
-echo -e "\e[1m\e[32mInstalling Docker Compose v2.5.1 ... \e[0m" && sleep 1
-curl -SL https://github.com/docker/compose/releases/download/v2.5.1/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
-sudo chown $USER /var/run/docker.sock
-sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
-fi
+echo -e "\e[1m\e[32mPreparing to install rustup ... \e[0m" && sleep 1
+sudo curl https://sh.rustup.rs -sSf | sh -s -- -y
+source $HOME/.cargo/env
+source $HOME/.bash_profile
+rustup update stable --force
 }
 
 
-function backupPK {
+function starknet {
 echo " "
-echo -e "\e[1m\e[32mPreparing to backup router private key ... \e[0m" && sleep 1
-cd $HOME/connext/nxtp-router-docker-compose
-cat key.yaml |grep privateKey | awk -F'"' '{print $2}' > $HOME/connext/router_private_key.json
-echo -e "\e[1m\e[92mYour Private Key:  \e[0m" $(cat $HOME/connext/router_private_key.json)
-pkBkpPath="$HOME/connext/router_private_key.json"
-echo -e "\e[7mYour Private Key on $pkBkpPath\e[0m"
+echo -e "\e[1m\e[32mPreparing to install starknet  ... \e[0m" && sleep 1
+mkdir -p $HOME/.starknet/db
 cd $HOME
+rm -rf pathfinder
+git clone https://github.com/eqlabs/pathfinder.git
+cd pathfinder
+git fetch
+git checkout v0.9.5
+cargo build --release --bin pathfinder
+source $HOME/.bash_profile
+sudo mv ~/pathfinder/target/release/pathfinder /usr/local/bin/
 }
 
 
-function createpk {
-echo " "
-echo -e "\e[1m\e[32mCreate Private Key ... \e[0m" && sleep 1
-openssl rand -hex 32 > $HOME/connext/router_private_key.json
-echo -e "\e[1m\e[92mYour Private Key:  \e[0m" $(cat $HOME/connext/router_private_key.json)
-}
+function createservice {
+echo "[Unit]
+Description=StarkNet
+After=network.target
 
+[Service]
+User=$USER
+Type=simple
+ExecStart=/usr/local/bin/pathfinder --http-rpc=\"0.0.0.0:9545\" --ethereum.url \"$ALCHEMY\" --data-directory \"$HOME/.starknet/db\"
+Restart=on-failure
+LimitNOFILE=65535
 
-
-function installnxtp {
-echo " "
-echo -e "\e[1m\e[32mPreparing to install Router ... \e[0m" && sleep 1
-mkdir -p $HOME/connext
-cd $HOME/connext
-git clone https://github.com/connext/nxtp-router-docker-compose.git
-}
-
-
-function coreversion_amarok {
-echo " "
-echo -e "\e[1m\e[32mSwitch to amarok version ... \e[0m" && sleep 1
-cd $HOME/connext/nxtp-router-docker-compose
-git checkout amarok
-}
-
-
-
-function createConfig {
-cd $HOME/connext/nxtp-router-docker-compose
-cp config.example.json config.json
+[Install]
+WantedBy=multi-user.target" > $HOME/starknetd.service
+sudo mv $HOME/starknetd.service /etc/systemd/system/
 }
 
 
 
-#function upvernxtp {
-#cd $HOME/connext/nxtp-router-docker-compose
-#read -p "Insert Router Version: " nxtpv
-#cp .env.example .env
-#curl -fsSLI -o /dev/null -w %{url_effective} https://github.com/connext/nxtp/releases/latest | awk 'BEGIN{FS="v"} {print $2}' > nxtp.version
-#echo " "
-#echo -e "\e[1m\e[32mLast NXTP Version : $(cat $HOME/connext/nxtp-router-docker-compose/nxtp.version)\e[0m" && sleep 1
-#sed -i 's/latest/'$(cat $HOME/connext/nxtp-router-docker-compose/nxtp.version)'/g' .env
-#docker pull ghcr.io/connext/router:$(cat $HOME/connext/nxtp-router-docker-compose/nxtp.version)
-#}
-
-function upvernxtp {
-cd $HOME/connext/nxtp-router-docker-compose
-cp .env.example .env
-docker image ls --all ghcr.io/connext/router |head -2 | tail -1 |awk {'print $2'} > nxtp.version
-echo " "
-echo -e "\e[1m\e[32mLast NXTP Version : $(cat $HOME/connext/nxtp-router-docker-compose/nxtp.version)\e[0m" && sleep 1
-sed -i 's/latest/'$(cat $HOME/connext/nxtp-router-docker-compose/nxtp.version)'/g' .env
-docker pull ghcr.io/connext/router:$(cat $HOME/connext/nxtp-router-docker-compose/nxtp.version)
+function startstarknetd {
+sudo systemctl restart systemd-journald
+sudo systemctl daemon-reload
+sudo systemctl enable starknetd
+sudo systemctl restart starknetd
 }
 
 
 
-
-function manupvernxtp {
-cd $HOME/connext/nxtp-router-docker-compose
-read -p "Insert Router Version: " nxtpv 
-cp .env.example .env
-echo " "
-echo -e "\e[1m\e[32mInstall NXTP Version : ${nxtpv}\e[0m" && sleep 1
-sed -i 's/latest/'${nxtpv}'/g' .env
-docker pull ghcr.io/connext/router:${nxtpv}
-}
-
-
-
-function setautokeyfile {
-cd $HOME/connext/nxtp-router-docker-compose
-cp key.example.yaml key.yaml
-sed -i 's/dkadkjasjdlkasdladadasda/'$(cat $HOME/connext/router_private_key.json)'/g' key.yaml
-}
-
-function setyourkeyfile {
-echo " "
-echo -e "\e[1m\e[32mPreparing your Private Key ... \e[0m" && sleep 1
-cd $HOME/connext/nxtp-router-docker-compose
-cp key.example.yaml key.yaml
-read -p "Insert your Private Key with out 0x: " yourpk
-sed -i 's/dkadkjasjdlkasdladadasda/'${yourpk}'/g' key.yaml
-}
-
-
-function setlastver {
-echo " "
-cd $HOME/connext/nxtp-router-docker-compose
-cp .env.example .env
-echo " "
-echo -e "\e[1m\e[32mLast NXTP Version : sha-498913b \e[0m" && sleep 1
-sed -i 's/latest/sha-498913b/g' .env
-docker pull ghcr.io/connext/router:sha-498913b
-}
-
-
-function dockerpull {
-echo " "
-echo -e "\e[1m\e[32mPreparing pull docker ... \e[0m" && sleep 1
-cd $HOME/connext/nxtp-router-docker-compose
-docker-compose pull
-}
-
-function dockerdown {
-echo " "
-echo -e "\e[1m\e[32mPreparing down Router ... \e[0m" && sleep 1
-cd $HOME/connext/nxtp-router-docker-compose
-docker-compose down
-}
-
-function dockerup {
-echo " "
-echo -e "\e[1m\e[32mPreparing Start Router ... \e[0m" && sleep 1
-cd $HOME/connext/nxtp-router-docker-compose
-docker-compose up -d
-}
 
 function delete {
 echo " "
-echo -e "\e[1m\e[32mPreparing Delete Router ... \e[0m" && sleep 1
-cd $HOME/connext/nxtp-router-docker-compose
-docker-compose down
-cd $HOME
-rm -rf $HOME/connext/nxtp-router-docker-compose
+echo -e "\e[1m\e[32mPreparing Delete Starknet node ... \e[0m" && sleep 1
+systemctl stop starknetd
+systemctl disable starknetd
+rm -rf ~/pathfinder/
+rm -rf /etc/systemd/system/starknetd.service
+rm -rf /usr/local/bin/pathfinder
 }
 
 
@@ -193,78 +100,26 @@ rm -rf $HOME/connext/nxtp-router-docker-compose
 
 
 PS3='Please enter your choice (input your option number and press enter): '
-options=("Install + Auto PKey" "Install + Your PKey" "Auto Upgrade" "Manual Upgrade" "Backup PKey" "Delete" "Quit")
+options=("Install Starknet Node"  "Delete Starknet Node" "Quit")
 
 select opt in "${options[@]}"
 do
     case $opt in
-        "Install + Auto PKey")
-            echo -e '\e[1m\e[32mYou choose Install Router with auto Private Key ...\e[0m' && sleep 1
+        "Install Starknet Node")
+            echo -e '\e[1m\e[32mYou choose Install Starknet Node ...\e[0m' && sleep 1
+alchemy
 Installingrequiredtool
-Installingdocker
-installnxtp
-coreversion_amarok
-#setlastver
-upvernxtp
-createConfig
-createpk
-setautokeyfile
-dockerpull
-dockerup
-echo -e "\e[1m\e[32mYour Router was Install!\e[0m" && sleep 1
-echo -e "\e[1m\e[92mYour Private Key:  \e[0m" $(cat $HOME/connext/router_private_key.json)&& sleep 1
+Installingrustup
+starknet
+createservice
+startstarknetd
+echo -e "\e[1m\e[32mYour Starknet Node Install!\e[0m" && sleep 1
 break
 ;;
 
-"Install + Your PKey")
-            echo -e '\e[1m\e[32mYou choose Install Router with your Private Key ...\e[0m' && sleep 1
-Installingrequiredtool
-Installingdocker
-installnxtp
-coreversion_amarok
-#setlastver
-upvernxtp
-createConfig
-setyourkeyfile
-dockerpull
-dockerup
-echo -e "\e[1m\e[32mYour Router was Install!\e[0m" && sleep 1
-break
-;;
 
-"Auto Upgrade")
-            echo -e '\e[1m\e[32mYou choose Upgrade Version ...\e[0m' && sleep 1
-dockerdown
-upvernxtp
-dockerpull
-dockerup
-echo -e "\e[1m\e[32mYour Router was upgraded to : $(cat $HOME/connext/nxtp-router-docker-compose/nxtp.version)\e[0m" && sleep 1
-break
-
-
-;;
-
-"Manual Upgrade")
-            echo -e '\e[1m\e[32mYou choose Manual Upgrade Version ...\e[0m' && sleep 1
-dockerdown
-manupvernxtp
-dockerpull
-dockerup
-echo -e "\e[1m\e[32mYour Router was upgraded to : ${nxtpv} \e[0m" && sleep 1
-break
-
-
-;;
-
-
-"Backup PKey")
-echo -e '\e[1m\e[32mYou choose Backup Private Key ...\e[0m' && sleep 1
-backupPK
-break
-
-;;
 "Delete")
-echo -e '\e[1m\e[32mYou choose Delete All Router File and Data ...\e[0m' && sleep 1
+echo -e '\e[1m\e[32mYou choose Delete Starknet Node ...\e[0m' && sleep 1
 delete
 break
 
