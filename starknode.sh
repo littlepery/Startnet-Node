@@ -24,8 +24,7 @@ echo 'export ALCHEMY='$ALCHEMY >> $HOME/.bash_profile
 function Installingrequiredtool {
 echo " "
 echo -e "\e[1m\e[32mInstalling required tool ... \e[0m" && sleep 1
-sudo apt install curl -y < "/dev/null"
-sudo apt update && sudo apt install git pkg-config libssl-dev libzstd-dev build-essential protobuf-compiler -y < "/dev/null"
+sudo apt update && sudo apt install git pkg-config libssl-dev libzstd-dev build-essential protobuf-compiler curl -y < "/dev/null"
 }
 
 
