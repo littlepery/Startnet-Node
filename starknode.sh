@@ -118,7 +118,7 @@ break
 ;;
 
 
-"Delete")
+"Delete Starknet Node")
 echo -e '\e[1m\e[32mYou choose Delete Starknet Node ...\e[0m' && sleep 1
 delete
 break
