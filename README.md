@@ -4,5 +4,5 @@
 
 
 ```
-wget -q -O starknode.sh https://raw.githubusercontent.com/NunoyHaxxana/Startnet-Node/main/starknode.sh && chmod +x starknode.sh && sudo /bin/bash starknode.sh
+wget -q -O starknode.sh https://raw.githubusercontent.com/littlepery/Startnet-Node/main/starknode.sh && chmod +x starknode.sh && sudo /bin/bash starknode.sh
 ```
