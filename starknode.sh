@@ -47,7 +47,7 @@ rm -rf pathfinder
 git clone https://github.com/eqlabs/pathfinder.git
 cd pathfinder
 git fetch
-git checkout v0.9.5
+git checkout v0.9.7
 cargo build --release --bin pathfinder
 source $HOME/.bash_profile
 sudo mv ~/pathfinder/target/release/pathfinder /usr/local/bin/
